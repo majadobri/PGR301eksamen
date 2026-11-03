@@ -89,3 +89,13 @@ wishifai/62/terraform.tfstate
 Kandidatnummeret i nøkkelen gjør at staten min ikke kolliderer med andre studenter.
 
 Jeg har også slått på låsing av staten (`use_lockfile = true`), slik som i remote state-labben. Det betyr at bare én person kan endre infrastrukturen om gangen, så ingen overskriver hverandres endringer. I tillegg er state-filen kryptert (`encrypt = true`).
+
+## Oppgave 2C
+
+Jeg har lagt til en Terraform-jobb i samme workflow-fil som i 1B, `.github/workflows/docker.yml`.
+
+Lenke til grønn kjøring: https://github.com/majadobri/PGR301eksamen/actions/runs/41665935413
+
+Terraform-jobben har `needs: push_to_registry`, så den venter til imaget er bygget og pushet til ECR. Byggejobben sender commit-SHA-en videre, og Terraform deployer akkurat det imaget. Jobben kjører `terraform fmt -check`, `terraform init` og `terraform apply` i `infra/`, og feiler hvis koden ikke er riktig formatert.
+
+Terraform må kjøre etter bygget, fordi det er det nye imaget som skal deployes. Kjørte Terraform først eller samtidig, kunne den prøvd å deploye et image som ikke finnes i ECR ennå. Og feiler bygget, kjører ikke Terraform i det hele tatt, så en ødelagt versjon blir aldri deployet.
