@@ -53,3 +53,39 @@ Hvert image tagges med den korte commit-SHA-en, for eksempel `marija:efb348a`. J
 - Man ser nøyaktig hvilken kode som kjører, fordi taggen peker rett til en commit i GitHub.
 - Det er enkelt å rulle tilbake til en tidligere versjon.
 - Terraform kan deploye en bestemt versjon i oppgave 2. Med bare `latest` vet man ikke hva som faktisk kjører.
+
+## Oppgave 2A
+
+All Terraform-kode ligger i `infra/`. Jeg har delt den i flere filer etter tema:
+
+- `providers.tf` – AWS-provider
+- `backend.tf` – remote state (se 2B)
+- `variables.tf` – region, kandidatnummer og image-tag
+- `s3.tf` – S3-bucket for bildene (`minbucket-62`)
+- `iam.tf` – task role for appen
+- `ecs.tf` – ECS Express-tjenesten
+- `outputs.tf` – URL til tjenesten, bucket-navn og task role
+
+Tjenesten kjører imaget fra ECR-repoet `marija` med taggen som sendes inn i `image_tag`. Som execution role og infrastructure role bruker jeg de ferdige rollene i klassekontoen.
+
+Appen må selv kunne kalle AWS-tjenester, så jeg har laget en egen task role (`wishifai-task-role-62`). Den har bare tilgangene appen trenger:
+
+- `s3:PutObject` og `s3:GetObject` på min egen bucket
+- `rekognition:DetectLabels` for å finne objekter i bildet
+- `bedrock:InvokeModel` og `bedrock:Converse` for å lage gaveforslag
+
+`S3_BUCKET` settes automatisk til navnet på bucketen Terraform lager, så den aldri må skrives inn for hånd.
+
+Offentlig URL: https://wi-37b53dabe0e6491aa7aa5525a818722d.ecs.eu-west-1.on.aws
+
+## Oppgave 2B
+
+Terraform-state lagres i den delte bucketen `pgr301-terraform-state` med nøkkelen:
+
+```
+wishifai/62/terraform.tfstate
+```
+
+Kandidatnummeret i nøkkelen gjør at staten min ikke kolliderer med andre studenter.
+
+Jeg har også slått på låsing av staten (`use_lockfile = true`), slik som i remote state-labben. Det betyr at bare én person kan endre infrastrukturen om gangen, så ingen overskriver hverandres endringer. I tillegg er state-filen kryptert (`encrypt = true`).
