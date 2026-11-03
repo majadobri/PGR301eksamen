@@ -99,3 +99,17 @@ Lenke til grønn kjøring: https://github.com/majadobri/PGR301eksamen/actions/ru
 Terraform-jobben har `needs: push_to_registry`, så den venter til imaget er bygget og pushet til ECR. Byggejobben sender commit-SHA-en videre, og Terraform deployer akkurat det imaget. Jobben kjører `terraform fmt -check`, `terraform init` og `terraform apply` i `infra/`, og feiler hvis koden ikke er riktig formatert.
 
 Terraform må kjøre etter bygget, fordi det er det nye imaget som skal deployes. Kjørte Terraform først eller samtidig, kunne den prøvd å deploye et image som ikke finnes i ECR ennå. Og feiler bygget, kjører ikke Terraform i det hele tatt, så en ødelagt versjon blir aldri deployet.
+
+## Oppgave 3A
+
+Jeg har lagt til metrikker med Micrometer i `WishlistService`, fordi det er der hele flyten skjer: S3, Rekognition og Bedrock. Metrikkene sendes til CloudWatch under namespace `marija`, som jeg satte i `MetricsConfig`.
+
+Jeg valgte disse metrikkene:
+- `rekognition_latency` (Timer) måler hvor lang tid Rekognition-kallet tar.
+- `bedrock_latency` (Timer) måler hvor lang tid Bedrock-kallet tar.
+- `images_analyzed` (Counter) teller hvor mange bilder som er analysert.
+- `gift_suggestions_per_analysis` (DistributionSummary) måler hvor mange gaveforslag Bedrock gir per bilde.
+
+Rekognition og Bedrock måles hver for seg, så man ser hvilket av kallene som gjør tjenesten treg. Det er akkurat det grunderen lurer på.
+De to siste er business-metrikker. `images_analyzed` viser hvor mye tjenesten faktisk brukes, som er noe investorer bryr seg om. `gift_suggestions_per_analysis` viser om Bedrock leverer det den skal.
+Jeg la også `cloudwatch:PutMetricData` til i task-rollen, sånn at appen får lov til å sende metrikkene.
