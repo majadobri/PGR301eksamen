@@ -28,6 +28,11 @@ data "aws_iam_policy_document" "task_permissions" {
     actions   = ["bedrock:InvokeModel", "bedrock:Converse"]
     resources = ["*"]
   }
+
+  statement {
+    actions   = ["cloudwatch:PutMetricData"]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy" "task_policy" {
