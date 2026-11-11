@@ -113,3 +113,44 @@ Jeg valgte disse metrikkene:
 Rekognition og Bedrock måles hver for seg, så man ser hvilket av kallene som gjør tjenesten treg. Det er akkurat det grunderen lurer på.
 De to siste er business-metrikker. `images_analyzed` viser hvor mye tjenesten faktisk brukes, som er noe investorer bryr seg om. `gift_suggestions_per_analysis` viser om Bedrock leverer det den skal.
 Jeg la også `cloudwatch:PutMetricData` til i task-rollen, sånn at appen får lov til å sende metrikkene.
+
+## Oppgave 3B
+
+Dashboardet og alarmen ligger i `infra/cloudwatch.tf`. Dashboardet heter `marija`.
+
+![Dashboard](media/dash.png)
+
+Dashboardet har fire widgets:
+- Business: antall bilder analysert og antall gaveforslag. Viser hvor mye tjenesten blir brukt.
+- Snittid Rekognition og Bedrock: hvor lang tid hvert kall tar i snitt.
+- Applikasjon (Actuator): CPU-bruk og antall tråder i JVM.
+- Infrastruktur (ECS): CPU, minne og antall tasks for tjenesten.
+
+Dashboardet viser at Rekognition bruker under ett sekund, mens Bedrock bruker rundt 16 sekunder. Det er altså Bedrock som gjør tjenesten treg.
+
+### Alarm
+
+Alarmen `marija-bedrock-latency` går hvis Bedrock i snitt bruker mer enn 20 sekunder, to perioder på 5 minutter på rad.
+
+Jeg valgte Bedrock fordi det er den tregeste delen av tjenesten, og den vi har minst kontroll over. Normalt tar den rundt 16 sekunder, så grensen ligger litt over det. Da går den hvis Bedrock blir merkbart tregere. To perioder på rad gjør at alarmen ikke går av ett enkelt tregt kall.
+
+## Oppgave 4
+Når man bruker generativ AI i en løsning som Wishifai, er det viktig å tenke på mer enn bare den tekniske funksjonen. Selv om tjenesten fungerer kan AI-en fortsatt komme med forslag som ikke passer eller er utrygge. Derfor er det viktig å ha gode rutiner for testing, leveranse og overvåkning. På denne måten sikrer man at AI-en gir gode og passende svar.
+
+Vanlige tester sjekker ofte om samme input gir forventet output. Dette er vanskeligere med språkmodeller fordi samme bilde kan gi forskjellige gaveforslag hver gang.
+
+I Wishifai kan man bruke et fast sett med testbilder og kontrollere at svarene følger bestemte regler. Man kan f.eks. sjekke at svaret har riktig format, at det inneholder faktiske gaveforslag og at forslagene ikke står på en liste over farlige produkter. Man kan også bruke en annen språkmodell til å vurdere om svarene er passende (LLM-as-judge). Slike tester bør kjøres i pipelinen før deploy, på samme måten som terraform fmt -check stopper pipelinen min i dag.
+
+I Wishifai bestemmes modellen av miljøvariabelen BEDROCK_MODEL_ID. Det betyr at man kan bytte modell eller prompt uten å endre koden. Problemet er at slike endirnger da kan skje uten at de vanlige testene kjøres. 
+
+Derfor bør modeller og prompter behandles som kode. De bør lagres i Git, versjoneres og kunne rulles tilbake hvis noe går galt. Dette fungerer på samme måte som image-taggene mine med commit-SHA. En ny modell kan også rulles ut gradvis med feature toggles eller først til en liten gruppe brukere gjennom canary deployment.
+
+Dashboardet mitt viser responstid og hvor mange gaveforslag som lages, men alarmen varsler bare hvis Bedrock blir treig. Den oppdager ikke nødvendigvis om forslagene blir upassende. Derfor bør man også overvåke kostnader, tokenbruk, hvor ofte modellen nekter å svare, svarlengde og tilbakemelding fra brukerne. Et fall i gift_suggestions_per_analysis kan være et tegn på at noe er galt.
+
+For å se om svarene er gode, må de lagres. Det kan være et personvernproblem, siden Wishifai bruker bilder fra folks hjem. Derfor må man være forsiktig med hvilke data som lagres.
+
+Hvor strenge kontrollene bør være avhenger av konsekvensene av feil. I Wishifai er dårlig gaveforslag irriterende, men som regel ufarlig. Automatiske tester, stikkprøver og tilbakemeldinger fra brukere kan være nok.
+
+I bank og helse kan feil få alvorlige konsekvenser. Da bør mennesker godkjenne endringer i modell og prompt, testene bør stoppe all deploy hvis de feiler og svarene bør kontrolleres av en fagperson før kunden får dem.
+
+DevOps handler fortsatt om automatisering, små endringer og rask tilbakemelding. Med generativ AI må man også teste og overvåke hva modellen svarer, ikke bare at tjenesten fungerer. Jo større risiko feil kan føre til, desto mer testing og menneskelig kontroll trenger man. 
